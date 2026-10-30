@@ -1,3 +1,8 @@
+# Lambda Web Adapter image. CI overrides this with a copy in our own ECR repo
+# because public.ecr.aws rate-limits anonymous pulls from GitHub runners.
+ARG ADAPTER_IMAGE=public.ecr.aws/awsguru/aws-lambda-adapter:1.0.0
+FROM ${ADAPTER_IMAGE} AS lambda-adapter
+
 # Stage 1: Build the Next.js static files
 FROM node:22-alpine AS frontend-builder
 
@@ -28,7 +33,7 @@ WORKDIR /app
 # --- Lambda Web Adapter additions (the only changes vs. the video's Dockerfile) ---
 # Drops a Lambda extension binary into /opt/extensions. The binary is inert
 # unless invoked by the Lambda runtime, so local `docker run` is unaffected.
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:1.0.0 /lambda-adapter /opt/extensions/lambda-adapter
+COPY --from=lambda-adapter /lambda-adapter /opt/extensions/lambda-adapter
 
 # Tell the adapter which port FastAPI listens on
 ENV PORT=8000

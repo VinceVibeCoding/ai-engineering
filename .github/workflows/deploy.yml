@@ -32,12 +32,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # TEMPORARY: print the OIDC subject so the IAM trust policy can be matched. Remove after.
-      - name: Debug OIDC subject
-        run: |
-          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
-          echo "$TOKEN" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null | jq '{sub, aud, iss}'
-
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
@@ -55,6 +49,7 @@ jobs:
           docker build \
             --provenance=false --sbom=false --platform linux/amd64 \
             --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" \
+            --build-arg ADAPTER_IMAGE="$REGISTRY/$ECR_REPOSITORY:adapter-1.0.0" \
             -t "$REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA" \
             -t "$REGISTRY/$ECR_REPOSITORY:latest" .
 
