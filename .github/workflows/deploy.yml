@@ -1,0 +1,69 @@
+name: Deploy to Lambda
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - "saas/**"
+      - ".github/workflows/deploy.yml"
+
+permissions:
+  id-token: write # needed to assume the AWS role through OIDC
+  contents: read
+
+# One deploy at a time; a newer push waits instead of cancelling a running deploy
+concurrency:
+  group: deploy-lambda
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+  AWS_ROLE_ARN: arn:aws:iam::753061251808:role/github-actions-consultation-app
+  ECR_REPOSITORY: consultation-app
+  LAMBDA_FUNCTION_NAME: consultation-app
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: saas
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+        run: |
+          # --provenance/--sbom=false: Lambda rejects the OCI index BuildKit adds by default
+          docker build \
+            --provenance=false --sbom=false --platform linux/amd64 \
+            --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" \
+            -t "$REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA" \
+            -t "$REGISTRY/$ECR_REPOSITORY:latest" .
+
+      - name: Push image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          docker push "$REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA"
+          docker push "$REGISTRY/$ECR_REPOSITORY:latest"
+
+      - name: Update Lambda function
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          aws lambda update-function-code \
+            --function-name "$LAMBDA_FUNCTION_NAME" \
+            --image-uri "$REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA"
+          aws lambda wait function-updated --function-name "$LAMBDA_FUNCTION_NAME"
