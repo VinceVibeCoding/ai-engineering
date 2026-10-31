@@ -1,0 +1,23 @@
+{
+  "full_name": "Vincent Lauzier",
+  "name": "Lauz",
+  "name2": "Lauzier",
+  "name3": "Vince",
+  "current_role": "Data Engineer",
+  "location": "Longueuil",
+  "email": "vincentlauzier@proton.me",
+  "linkedin": "linkedin.com/in/yourprofile",
+  "specialties": [
+    "AI Infrastructure",
+    "Agent Development",
+    "Micro-Services Applications"
+  ],
+  "years_experience": 5,
+  "education": [
+    {
+      "degree": "Bachelor in Business Administration",
+      "institution": "Université de Sherbrooke",
+      "year": "2022"
+    }
+  ]
+}
